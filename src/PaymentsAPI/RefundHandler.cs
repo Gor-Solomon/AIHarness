@@ -22,7 +22,7 @@ namespace PaymentsAPI
             // Requirement: Zero or Negative amounts are strictly forbidden
             if (command.Amount <= 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(command.Amount), "Refund amount must be greater than zero.");
+                throw new ArgumentOutOfRangeException(nameof(command.Amount), "Refund amount must BE greater than zero.");
             }
 
             // Calculation logic for PAY-4471: Determine exactly how much is left to refund
