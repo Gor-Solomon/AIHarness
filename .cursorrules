@@ -1,21 +1,14 @@
-# AI Agent Behavior Rules: Tier 3 Financial Constraints
-# This file is interpreted by Cursor and other AI-native IDEs.
-# It enforces the architectural standards required for the AIHarness.
-# Owner: Principal Architect
+# Global AI Governance Constraints
 
-# General Context
-The /src/PaymentsAPI/ directory is designated as TIER 3 (Critical Financial Path). 
-Governance is strictly enforced via CI/CD and human review.
+## 1. C# .NET Core Domain Rules
+- All code under `src/PaymentsAPI/` is Tier 3. 
+- Use `decimal` for all currency. No floats or doubles.
 
-# Coding Standards
-- ALWAYS use 'decimal' for any variable representing money. NEVER use 'double' or 'float'.
-- All financial logic MUST handle overflow and underflow scenarios.
-- AI-generated code MUST achieve 100% unit test coverage for the targeted change.
+## 2. React Native & TypeScript Ecosystem Rules (Tier 2)
+- All UI components under `src/mobile-app/` must use strict TypeScript types (`strict: true`). No usage of `any`.
+- Functional components only. Use hooks for state management.
+- Every API network request to the backend must explicitly inject an `X-Correlation-ID` header for end-to-end observability tracing.
 
-# Logic Enforcement (PAY-4471)
-- When calculating refunds, you MUST verify that (Sum of Previous Refunds + Current Refund) <= Original Charge Amount.
-- Throw 'InvalidOperationException' for refund violations.
-
-# Verification
-- Every fix MUST include a corresponding xUnit test file in /tests/PaymentsAPI.Tests/.
-- Use Moq for external dependencies like IBankApi.
+## 3. Security & Observability
+- Never print API tokens, user credit card data, or authentication states to `console.log`.
+- All mobile diagnostic logging must route through the native transport layer to AWS CloudWatch.

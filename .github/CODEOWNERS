@@ -6,3 +6,6 @@
 
 /src/PaymentsAPI/ @Senior-Finance-Team
 /tests/PaymentsAPI.Tests/ @Senior-Finance-Team
+/sonar-project.properties @DevOps-Architects
+/.github/workflows/* @DevOps-Architects
+/.cursorrules @DevOps-Architects

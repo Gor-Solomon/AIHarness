@@ -1,28 +1,28 @@
 using System;
 using System.Threading.Tasks;
 
-namespace PaymentsAPI.Models
+namespace PaymentsService.Src.Payments
 {
-    // Owner: Human Architect (Domain Models)
-    // Purpose: Define the immutable state and contracts for the payment system.
-    // Enforcement: Uses decimal for all monetary values as per .cursorrules.
+    // Owner: Human Architect
+    // Purpose: Domain entities and interfaces for the payment domain.
+    // Tier: 3 (Critical)
 
     public class Charge
     {
-        public Guid ChargeId { get; set; }
-        public Guid CustomerId { get; set; }
+        public string ChargeId { get; set; } = string.Empty;
+        public string CustomerId { get; set; } = string.Empty;
         public decimal Amount { get; set; }
         public decimal TotalRefunded { get; set; }
     }
 
     public class RefundCommand
     {
-        public Guid ChargeId { get; set; }
+        public string ChargeId { get; set; } = string.Empty;
         public decimal Amount { get; set; }
     }
 
     public interface IBankApi
     {
-        Task SendMoney(Guid customerId, decimal amount);
+        Task SendMoney(string customerId, decimal amount);
     }
 }

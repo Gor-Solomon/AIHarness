@@ -1,14 +1,14 @@
 using System;
 using System.Threading.Tasks;
 using Moq;
-using PaymentsAPI.Models;
+using PaymentsService.Src.Payments;
 using Xunit;
 
-namespace PaymentsAPI.Tests
+namespace PaymentsService.Tests.Payments
 {
     // Owner: AI Agent (Verification Suite)
-    // Purpose: Provides 100% test coverage for the RefundHandler to satisfy SonarQube gates.
-    // Enforcement: Demonstrates that the bug PAY-4471 is definitively fixed and guarded against regressions.
+    // Purpose: Regression testing for PAY-4471 and edge case validation.
+    // Tier: 3 (Critical)
 
     public class RefundHandlerTests
     {
@@ -22,66 +22,67 @@ namespace PaymentsAPI.Tests
         }
 
         [Fact]
-        public async Task ProcessRefundAsync_Success_ValidPartialRefund()
+        public async Task HandleAsync_ValidPartialRefund_SucceedsAndUpdatesTotal()
         {
             // Arrange
-            var charge = new Charge { ChargeId = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Amount = 100.00m, TotalRefunded = 0m };
-            var command = new RefundCommand { ChargeId = charge.ChargeId, Amount = 40.00m };
+            var charge = new Charge { ChargeId = "CH-100", CustomerId = "CUST-99", Amount = 250.00m, TotalRefunded = 0.00m };
+            var cmd = new RefundCommand { ChargeId = "CH-100", Amount = 100.00m };
 
             // Act
-            await _handler.ProcessRefundAsync(charge, command);
+            await _handler.HandleAsync(charge, cmd);
 
             // Assert
-            Assert.Equal(40.00m, charge.TotalRefunded);
-            _mockBankApi.Verify(x => x.SendMoney(charge.CustomerId, 40.00m), Times.Once);
+            Assert.Equal(100.00m, charge.TotalRefunded);
+            _mockBankApi.Verify(x => x.SendMoney("CUST-99", 100.00m), Times.Once);
         }
 
         [Fact]
-        public async Task ProcessRefundAsync_Failure_OverRefund_PAY4471()
+        public async Task HandleAsync_RefundExceedsOriginalCharge_ThrowsInvalidOperationException()
         {
-            // Arrange
-            var charge = new Charge { ChargeId = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Amount = 100.00m, TotalRefunded = 0m };
-            var command = new RefundCommand { ChargeId = charge.ChargeId, Amount = 101.00m };
+            // Arrange - PAY-4471 Reproduction Case ($400 refund attempt on a $250 charge)
+            var charge = new Charge { ChargeId = "CH-100", CustomerId = "CUST-99", Amount = 250.00m, TotalRefunded = 0.00m };
+            var cmd = new RefundCommand { ChargeId = "CH-100", Amount = 400.00m };
 
             // Act & Assert
-            var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => _handler.ProcessRefundAsync(charge, command));
-            Assert.Contains("exceeds remaining refundable balance", exception.Message);
-            _mockBankApi.Verify(x => x.SendMoney(It.IsAny<Guid>(), It.IsAny<decimal>()), Times.Never);
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => _handler.HandleAsync(charge, cmd));
+            Assert.Contains("exceeds the remaining refundable balance", exception.Message);
+            _mockBankApi.Verify(x => x.SendMoney(It.IsAny<string>(), It.IsAny<decimal>()), Times.Never);
         }
 
         [Fact]
-        public async Task ProcessRefundAsync_Failure_SequentialOverRefund()
+        public async Task HandleAsync_SubsequentRefundExceedsRemaining_ThrowsInvalidOperationException()
         {
-            // Arrange
-            var charge = new Charge { ChargeId = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Amount = 100.00m, TotalRefunded = 60.00m };
-            var command = new RefundCommand { ChargeId = charge.ChargeId, Amount = 41.00m };
+            // Arrange - Balance checks across multi-step mutations ($200 already refunded, attempt additional $60 on $250 total)
+            var charge = new Charge { ChargeId = "CH-100", CustomerId = "CUST-99", Amount = 250.00m, TotalRefunded = 200.00m };
+            var cmd = new RefundCommand { ChargeId = "CH-100", Amount = 60.00m };
 
             // Act & Assert
-            var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => _handler.ProcessRefundAsync(charge, command));
-            Assert.Contains("balance of 40.00", exception.Message);
-            _mockBankApi.Verify(x => x.SendMoney(It.IsAny<Guid>(), It.IsAny<decimal>()), Times.Never);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => _handler.HandleAsync(charge, cmd));
+            _mockBankApi.Verify(x => x.SendMoney(It.IsAny<string>(), It.IsAny<decimal>()), Times.Never);
         }
 
         [Fact]
-        public async Task ProcessRefundAsync_Failure_NegativeRefundAmount()
+        public async Task HandleAsync_NegativeRefundAmount_ThrowsArgumentOutOfRangeException()
         {
             // Arrange
-            var charge = new Charge { ChargeId = Guid.NewGuid(), Amount = 100.00m };
-            var command = new RefundCommand { Amount = -10.00m };
+            var charge = new Charge { ChargeId = "CH-100", CustomerId = "CUST-99", Amount = 250.00m, TotalRefunded = 0.00m };
+            var cmd = new RefundCommand { ChargeId = "CH-100", Amount = -50.00m };
 
             // Act & Assert
-            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => _handler.ProcessRefundAsync(charge, command));
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => _handler.HandleAsync(charge, cmd));
+            _mockBankApi.Verify(x => x.SendMoney(It.IsAny<string>(), It.IsAny<decimal>()), Times.Never);
         }
 
         [Fact]
-        public async Task ProcessRefundAsync_Failure_ZeroRefundAmount()
+        public async Task HandleAsync_ZeroRefundAmount_ThrowsArgumentOutOfRangeException()
         {
             // Arrange
-            var charge = new Charge { ChargeId = Guid.NewGuid(), Amount = 100.00m };
-            var command = new RefundCommand { Amount = 0.00m };
+            var charge = new Charge { ChargeId = "CH-100", CustomerId = "CUST-99", Amount = 250.00m, TotalRefunded = 0.00m };
+            var cmd = new RefundCommand { ChargeId = "CH-100", Amount = 0.00m };
 
             // Act & Assert
-            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => _handler.ProcessRefundAsync(charge, command));
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => _handler.HandleAsync(charge, cmd));
+            _mockBankApi.Verify(x => x.SendMoney(It.IsAny<string>(), It.IsAny<decimal>()), Times.Never);
         }
     }
 }

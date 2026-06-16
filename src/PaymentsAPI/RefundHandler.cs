@@ -1,12 +1,11 @@
 using System;
 using System.Threading.Tasks;
-using PaymentsAPI.Models;
 
-namespace PaymentsAPI
+namespace PaymentsService.Src.Payments
 {
-    // Owner: AI Agent (Fixing PAY-4471)
-    // Purpose: Handles refund logic with strict validation to prevent refunds exceeding original charges.
-    // Enforcement: Throws exceptions for invalid states, satisfying Tier 3 governance.
+    // Owner: AI Agent (Supervised by Senior Finance)
+    // Purpose: Corrected refund logic to resolve PAY-4471.
+    // Tier: 3 (Critical)
 
     public class RefundHandler
     {
@@ -14,32 +13,41 @@ namespace PaymentsAPI
 
         public RefundHandler(IBankApi bankApi)
         {
-            _bankApi = bankApi;
+            _bankApi = bankApi ?? throw new ArgumentNullException(nameof(bankApi));
         }
 
-        public async Task ProcessRefundAsync(Charge charge, RefundCommand command)
+        public async Task HandleAsync(Charge charge, RefundCommand cmd)
         {
-            // Requirement: Zero or Negative amounts are strictly forbidden
-            if (command.Amount <= 0)
+            if (charge == null)
             {
-                throw new ArgumentOutOfRangeException(nameof(command.Amount), "Refund amount must BE greater than zero.");
+                throw new ArgumentNullException(nameof(charge));
             }
 
-            // Calculation logic for PAY-4471: Determine exactly how much is left to refund
+            if (cmd == null)
+            {
+                throw new ArgumentNullException(nameof(cmd));
+            }
+
+            // Calculation of remaining refundable limit
             decimal remainingRefundable = charge.Amount - charge.TotalRefunded;
 
-            // Enforcement logic: Block refund if it exceeds the remaining balance
-            if (command.Amount > remainingRefundable)
+            // Validation Path 1: Enforce boundaries against excessive financial leakage (PAY-4471 Bug Resolution)
+            if (cmd.Amount > remainingRefundable)
             {
-                throw new InvalidOperationException(
-                    $"Refund amount {command.Amount} exceeds remaining refundable balance of {remainingRefundable} for Charge {charge.ChargeId}.");
+                throw new InvalidOperationException("Refund amount exceeds the remaining refundable balance of the original charge.");
             }
 
-            // External integration: Call the bank API
-            await _bankApi.SendMoney(charge.CustomerId, command.Amount);
+            // Validation Path 2: Guard system against negative value or zero-amount input vulnerabilities
+            if (cmd.Amount <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(cmd.Amount), "Refund amount must be strictly greater than zero.");
+            }
 
-            // State update: Increment the total refunded amount
-            charge.TotalRefunded += command.Amount;
+            // Process external banking system transfer node
+            await _bankApi.SendMoney(charge.CustomerId, cmd.Amount);
+
+            // Mutate internal application entity tracking values safely
+            charge.TotalRefunded += cmd.Amount;
         }
     }
 }
