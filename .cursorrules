@@ -1,0 +1,21 @@
+# AI Agent Behavior Rules: Tier 3 Financial Constraints
+# This file is interpreted by Cursor and other AI-native IDEs.
+# It enforces the architectural standards required for the AIHarness.
+# Owner: Principal Architect
+
+# General Context
+The /src/PaymentsAPI/ directory is designated as TIER 3 (Critical Financial Path). 
+Governance is strictly enforced via CI/CD and human review.
+
+# Coding Standards
+- ALWAYS use 'decimal' for any variable representing money. NEVER use 'double' or 'float'.
+- All financial logic MUST handle overflow and underflow scenarios.
+- AI-generated code MUST achieve 100% unit test coverage for the targeted change.
+
+# Logic Enforcement (PAY-4471)
+- When calculating refunds, you MUST verify that (Sum of Previous Refunds + Current Refund) <= Original Charge Amount.
+- Throw 'InvalidOperationException' for refund violations.
+
+# Verification
+- Every fix MUST include a corresponding xUnit test file in /tests/PaymentsAPI.Tests/.
+- Use Moq for external dependencies like IBankApi.

@@ -1,0 +1,8 @@
+# AI Governance: Mandatory Human Review for Tier 3 Paths
+# This file is owned by the DevOps/Security team. 
+# It enforces that any change to the PaymentsAPI, which handles actual money movement, 
+# cannot be merged without an explicit approval from the Senior Finance Team.
+# This prevents AI-generated code from reaching production without expert human validation.
+
+/src/PaymentsAPI/ @Senior-Finance-Team
+/tests/PaymentsAPI.Tests/ @Senior-Finance-Team
